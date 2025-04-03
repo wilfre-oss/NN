@@ -8,9 +8,12 @@ class Layer:
         self.num_nodes_out = nodes_out
         self.weights = np.random.uniform(-0.5, 0.5, (nodes_out, nodes_in))
         self.biases = np.zeros((nodes_out, 1))
+        
     
-    def calculate_outputs(self, inputs: NDArray[np.float64]) -> NDArray[np.float64]:
+    def calculate_outputs(self, inputs: NDArray) -> NDArray:
         output = self.biases + self.weights @ inputs
-        return 1 / (1 + np.exp(output))
+        self.outputs = 1 / (1 + np.exp(output)) 
+        return self.outputs
+    
 
     
