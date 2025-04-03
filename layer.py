@@ -12,7 +12,7 @@ class Layer:
     
     def calculate_outputs(self, inputs: NDArray) -> NDArray:
         output = self.biases + self.weights @ inputs
-        self.outputs = 1 / (1 + np.exp(output)) 
+        self.outputs = 1 / (1 + np.exp(-output)) 
         return self.outputs
     
 

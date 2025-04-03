@@ -15,17 +15,17 @@ class NeuralNetwork:
         return inputs
 
     def classify(self, inputs: NDArray) -> int:
-        self.outputs = self.calculate_output(inputs)
+        self.outputs = self.calculate_outputs(inputs)
         return np.argmax(self.outputs)
     
     def cost(self, label: NDArray) -> float:
         return 1 / len(self.outputs) * np.sum((self.outputs - label) ** 2, axis=0)
     
-    def cost(self, inputs: NDArray, label: NDArray) -> float:
+    def calc_cost(self, inputs: NDArray, label: NDArray) -> float:
         self.outputs = self.calculate_outputs(inputs)
         return 1 / len(self.outputs) * np.sum((self.outputs - label) ** 2, axis=0)
     
-    def back_propagate(self, input: NDArray, label: NDArray) -> None:
+    def back_propagate(self, img: NDArray, label: NDArray) -> None:
         delta = self.outputs - label
         self.layers[-1].weights += -self.learn_rate * delta @ np.transpose(self.layers[-2].outputs)
         self.layers[-1].biases += -self.learn_rate * delta
@@ -39,6 +39,6 @@ class NeuralNetwork:
             curr_layer.weights += -self.learn_rate * delta @ np.transpose(next_layer.outputs)
             curr_layer.biases += -self.learn_rate * delta
 
-        delta = self.layers[0].weights.T @ delta * (self.layers[1].weights.outputs * (1 - self.layers[1].weights.outputs))
-        self.layers[0].weights += -self.learn_rate * delta @ input.T
+        delta = self.layers[1].weights.T @ delta * (self.layers[0].outputs * (1 - self.layers[0].outputs))
+        self.layers[0].weights += -self.learn_rate * delta @ img.T
         self.layers[0].biases += -self.learn_rate * delta
