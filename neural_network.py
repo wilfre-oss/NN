@@ -5,9 +5,15 @@ from numpy.typing import NDArray
 
 class NeuralNetwork:
 
-    def __init__(self, layer_sizes: List[Tuple[int, int]]):
+    def __init__(self, layer_sizes: List[Tuple[int, int]] = []):
         self.layers: List[Layer] = [Layer(x, y) for x,y in layer_sizes]
         self.learn_rate = 0.01
+
+    def create_layers(self, input_size: int, output_size: int, hidden_layers: List[int]):
+        for layer in hidden_layers:
+            self.layers.append(Layer(input_size, layer))
+            input_size = layer
+        self.layers.append(Layer(input_size, output_size))
 
     def calculate_outputs(self, inputs: NDArray) -> NDArray:
         for layer in self.layers:

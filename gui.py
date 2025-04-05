@@ -2,13 +2,13 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from pathlib import Path
 import sys
+import pickle
 from main import train_model, save_model
 
 if sys.platform.startswith("win"):
     import ctypes
 
     def show_in_taskbar(window):
-        # Get the window handle
         hwnd = ctypes.windll.user32.GetParent(window.winfo_id())
         # WS_EX_TOOLWINDOW = 0x00000080, WS_EX_APPWINDOW = 0x00040000
         ex_style = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
@@ -29,13 +29,18 @@ def create_gui():
     window.resizable(False, False)
     
     trained_model = None
+    epochs = tk.StringVar(value="5")
+    hidden_layers = tk.StringVar(value="20")
+    learning_rate = tk.StringVar(value="0.01")
 
     def train_network():
         nonlocal trained_model
         try:
-            epochs = int(epoch_entry.get())
+            epoch_value = int(epochs.get())
+            hidden_layer_sizes = [int(layer) for layer in hidden_layers.get().split(",")]
+            learn_rate_value = float(learning_rate.get())
         except ValueError:
-            status_label.config(text="Please enter a valid integer for epochs.")
+            status_label.config(text="Please enter valid values in settings.")
             return
 
         def update_progress(epoch: int, total_epochs: int, accuracy: float | None):
@@ -45,23 +50,100 @@ def create_gui():
                 status_label.config(text=f"Epoch {epoch}/{total_epochs} - Accuracy: {accuracy:.2f}%")
             window.update_idletasks()
 
-        trained_model, accuracy = train_model(epochs=epochs, progress_callback=update_progress)
-        status_label.config(text=f"Training complete! Epoch {epochs}/{epochs} - Accuracy: {accuracy:.2f}%")
+        trained_model, accuracy = train_model(
+            epochs=epoch_value, 
+            hidden_layer_sizes=hidden_layer_sizes,
+            learn_rate=learn_rate_value,
+            progress_callback=update_progress,
+            network=trained_model
+        )
+        status_label.config(text=f"Training complete! Epoch {epoch_value}/{epoch_value} - Accuracy: {accuracy:.2f}%")
 
     def save_trained_model():
         if trained_model is None:
             status_label.config(text="Train the model first!")
             return
 
-        file_path = filedialog.asksaveasfilename(
+        file_path = save_model(trained_model)
+        if file_path:
+            status_label.config(text=f"Model saved to {file_path}")
+        else:
+            status_label.config(text="Failed to save model")
+
+    def load_trained_model():
+        nonlocal trained_model
+        file_path = filedialog.askopenfilename(
             initialdir=Path.cwd(),
             defaultextension=".pkl",
             filetypes=[("Pickle Files", "*.pkl")],
-            title="Save trained model"
+            title="Load trained model"
         )
         if file_path:
-            save_model(trained_model, file_path)
-            status_label.config(text=f"Model saved to {file_path}")
+            try:
+                trained_model = pickle.load(open(file_path, "rb"))
+                status_label.config(text=f"Model loaded from {file_path}")
+            except Exception as e:
+                status_label.config(text=f"Failed to load model: {str(e)}")
+        else:
+            status_label.config(text="Failed to load model")
+
+    def open_settings():
+        settings_window = tk.Toplevel(window)
+        settings_window.title("Neural Network Settings")
+        settings_window.geometry("400x320")
+        settings_window.resizable(False, False)
+
+        # Create a frame for the settings
+        settings_frame = ttk.Frame(settings_window, padding="20 20 20 20")
+        settings_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Configure grid for settings frame
+        settings_frame.columnconfigure(0, weight=1)
+        settings_frame.columnconfigure(1, weight=1)
+        for row in range(5):
+            settings_frame.rowconfigure(row, weight=1)
+            
+        # Create settings header
+        settings_header = ttk.Label(settings_frame, text="Training Settings", font=('Helvetica', 14, 'bold'))
+        settings_header.grid(row=0, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 15))
+        
+        # Create training parameters frame
+        training_frame = ttk.Frame(settings_frame)
+        training_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+        training_frame.columnconfigure(0, weight=1)
+        training_frame.columnconfigure(1, weight=1)
+        
+        # Epochs setting
+        epoch_label = ttk.Label(training_frame, text="Epochs:")
+        epoch_label.grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        
+        epoch_entry = ttk.Entry(training_frame, textvariable=epochs, width=10)
+        epoch_entry.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        
+        # Hidden layers setting
+        hidden_layer_label = ttk.Label(training_frame, text="Hidden Layer Sizes:")
+        hidden_layer_label.grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        
+        hidden_layer_entry = ttk.Entry(training_frame, textvariable=hidden_layers, width=10)
+        hidden_layer_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        
+        # Learning rate setting
+        learning_rate_label = ttk.Label(training_frame, text="Learning Rate:")
+        learning_rate_label.grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        
+        learning_rate_entry = ttk.Entry(training_frame, textvariable=learning_rate, width=10)
+        learning_rate_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        
+        # Add save button to settings window
+        save_settings_button = ttk.Button(settings_frame, text="Save Settings", 
+                                         command=lambda: settings_window.destroy())
+        save_settings_button.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
+
+    def test_model():
+        if trained_model is None:
+            status_label.config(text="Train the model first!")
+            return
+
 
     def start_move(event):
         window.x = event.x
@@ -107,11 +189,13 @@ def create_gui():
     style.configure('TLabel', font=('Helvetica', 12))
     style.configure('TButton', font=('Helvetica', 12), padding=6)
     style.configure('TEntry', font=('Helvetica', 12), padding=4)
+    style.configure('TLabelframe', font=('Helvetica', 12))
+    style.configure('TLabelframe.Label', font=('Helvetica', 12, 'bold'))
 
     # Create a main frame with padding for the rest of the widgets
     mainframe = ttk.Frame(window, padding="20 20 20 20")
     mainframe.pack(fill=tk.BOTH, expand=True)
-    
+      
     # Configure grid column and row weights
     columns = 2
     rows = 4
@@ -120,26 +204,21 @@ def create_gui():
     for row in range(rows):
         mainframe.rowconfigure(row, weight=1)
 
-    # Create a container frame for epoch input to ensure proper layout
-    epoch_frame = ttk.Frame(mainframe)
-    epoch_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
-    epoch_frame.columnconfigure(0, weight=1)
-    epoch_frame.columnconfigure(1, weight=1)
-    
-    # Widgets inside epoch_frame
-    epoch_label = ttk.Label(epoch_frame, text="Epochs:")
-    epoch_label.grid(row=0, column=0, sticky="e", padx=5)
-
-    epoch_entry = ttk.Entry(epoch_frame, width=10)
-    epoch_entry.grid(row=0, column=1, sticky="w", padx=5)
-    epoch_entry.insert(0, "5")
-
     # Button widgets in main frame
-    train_button = ttk.Button(mainframe, text="Train", command=train_network)
-    train_button.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
+    settings_button = ttk.Button(mainframe, text="Settings", command=open_settings)
+    settings_button.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
 
     save_button = ttk.Button(mainframe, text="Save Model", command=save_trained_model)
-    save_button.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
+    save_button.grid(row=1, column=0, columnspan=1, sticky="ew", padx=5, pady=10)
+
+    load_button = ttk.Button(mainframe, text="Load Model", command=load_trained_model)
+    load_button.grid(row=1, column=1, columnspan=1, sticky="ew", padx=5, pady=10)
+
+    train_button = ttk.Button(mainframe, text="Train", command=train_network)
+    train_button.grid(row=2, column=0, columnspan=1, sticky="ew", padx=5, pady=10)
+
+    test_button = ttk.Button(mainframe, text="Test", command=test_model)
+    test_button.grid(row=2, column=1, columnspan=1, sticky="ew", padx=5, pady=10)
 
     status_label = ttk.Label(mainframe, text="Status: Waiting...", anchor="center")
     status_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=10)

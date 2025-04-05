@@ -5,24 +5,36 @@ from data import get_mnist
 import pickle
 from pathlib import Path
 from typing import Optional, Tuple, Callable
+from tkinter import filedialog
+from typing import List
 
-def train_model(epochs: int, progress_callback: Optional[Callable] = None) -> Tuple[NeuralNetwork, float]:
+def train_model(
+    epochs: int, 
+    hidden_layer_sizes: List[int] = [20], 
+    learn_rate: float = 0.01, 
+    progress_callback: Optional[Callable] = None,
+    network: Optional[NeuralNetwork] = None
+) -> Tuple[NeuralNetwork, float]:
     """
     Train the neural network model.
     
     Args:
         epochs: Number of epochs to train for
+        hidden_layer_sizes: Size of the hidden layers
+        learn_rate: Learning rate for the neural network
         progress_callback: Optional callback function to report progress (epoch, total_epochs, accuracy)
     
     Returns:
-        Trained NeuralNetwork model
+        Tuple of (trained_model, final_accuracy)
     """
     inputs, labels = get_mnist()
     
-    first_layer = (inputs.shape[1], 20)
-    output_layer = (20, labels.shape[1])
-    nn = NeuralNetwork([first_layer, output_layer])
-    nn.learn_rate = 0.01
+    if network is None:
+        nn = NeuralNetwork()
+        nn.create_layers(inputs.shape[1], labels.shape[1], hidden_layer_sizes)
+    else:
+        nn = network
+    nn.learn_rate = learn_rate
     accuracy = None
 
     for epoch in range(epochs):
@@ -42,16 +54,27 @@ def train_model(epochs: int, progress_callback: Optional[Callable] = None) -> Tu
     
     return nn, accuracy
 
-def save_model(model: NeuralNetwork, file_path: str) -> None:
+def save_model(model: NeuralNetwork) -> str | None:
     """
     Save the trained model to a file.
     
     Args:
         model: The trained NeuralNetwork model to save
-        file_path: Path where to save the model
+    
+    Returns:
+        Path to the saved model or None if saving was cancelled
     """
-    with open(file_path, "wb") as f:
-        pickle.dump(model, f)
+    file_path = filedialog.asksaveasfilename(
+        initialdir=Path.cwd(),
+        defaultextension=".pkl",
+        filetypes=[("Pickle Files", "*.pkl")],
+        title="Save trained model"
+    )
+    if file_path:
+        with open(file_path, "wb") as f:
+            pickle.dump(model, f)
+        return file_path
+    return None
 
 def display_prediction(model: NeuralNetwork) -> None:
     """
