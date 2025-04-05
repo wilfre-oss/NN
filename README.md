@@ -14,7 +14,8 @@ A simple feedforward neural network written in Python and NumPy, designed for ex
 
 > Modern UI with draggable title bar, styled buttons, and taskbar visibility support (Windows only)
 
-![GUI Preview](https://github.com/user-attachments/assets/0577a755-6f86-4dc1-92b1-0b9a473e9f71)
+![GUI Preview](https://github.com/user-attachments/assets/c9b6224c-1c44-40c3-ad01-875090b3afd6)
+
 
 ## 📦 Requirements
 
