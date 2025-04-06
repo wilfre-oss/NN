@@ -1,103 +1,173 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from neural_network import NeuralNetwork
-from data import get_mnist
-import pickle
 from pathlib import Path
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, List
+import pickle
 from tkinter import filedialog
-from typing import List
 
-def train_model(
-    epochs: int, 
-    hidden_layer_sizes: List[int] = [20], 
-    learn_rate: float = 0.01, 
-    progress_callback: Optional[Callable] = None,
-    network: Optional[NeuralNetwork] = None
-) -> Tuple[NeuralNetwork, float]:
-    """
-    Train the neural network model.
-    
-    Args:
-        epochs: Number of epochs to train for
-        hidden_layer_sizes: Size of the hidden layers
-        learn_rate: Learning rate for the neural network
-        progress_callback: Optional callback function to report progress (epoch, total_epochs, accuracy)
-    
-    Returns:
-        Tuple of (trained_model, final_accuracy)
-    """
-    inputs, labels = get_mnist()
-    
-    if network is None:
-        nn = NeuralNetwork()
-        nn.create_layers(inputs.shape[1], labels.shape[1], hidden_layer_sizes)
-    else:
-        nn = network
-    nn.learn_rate = learn_rate
-    accuracy = None
+from gui import create_gui
+from data import get_mnist
+from neural_network import NeuralNetwork
 
-    for epoch in range(epochs):
-        correct = 0
-        if progress_callback:
-            progress_callback(epoch, epochs, accuracy)
-        for img, label in zip(inputs, labels):
-            img = img.reshape(-1, 1)
-            label = label.reshape(-1, 1)
+class NNController:
+    """
+    Controller class for the Neural Network application.
+    Handles the business logic and coordination between model and view.
+    """
+    
+    def __init__(self):
+        self.model = None
+        self.epochs = 5
+        self.hidden_layer_sizes = [20]
+        self.learn_rate = 0.01
+        
+    def train_model(self, progress_callback: Optional[Callable] = None) -> float:
+        """
+        Train the neural network model.
+        
+        Args:
+            progress_callback: Optional callback function to report progress (epoch, total_epochs, accuracy)
+        
+        Returns:
+            Final accuracy of the model
+        """
+        inputs, labels = get_mnist()
+        
+        if self.model is None:
+            nn = NeuralNetwork()
+            nn.create_layers(inputs.shape[1], labels.shape[1], self.hidden_layer_sizes)
+        else:
+            nn = self.model
+        nn.learn_rate = self.learn_rate
+        accuracy = None
+
+        for epoch in range(self.epochs):
+            correct = 0
+            if progress_callback:
+                progress_callback(epoch, self.epochs, accuracy)
+            for img, label in zip(inputs, labels):
+                img = img.reshape(-1, 1)
+                label = label.reshape(-1, 1)
+                
+                classification = nn.classify(img)
+                correct += int(classification == np.argmax(label))
+                nn.back_propagate(img, label)
             
-            classification = nn.classify(img)
-            correct += int(classification == np.argmax(label))
-            nn.back_propagate(img, label)
+            accuracy = (correct / inputs.shape[0]) * 100
         
-        accuracy = (correct / inputs.shape[0]) * 100
-        
+        self.model = nn
+        return accuracy
     
-    return nn, accuracy
+    def save_model(self) -> str | None:
+        """
+        Save the trained model to a file.
+        
+        Returns:
+            Path to the saved model or None if saving was cancelled or failed
+        """
+        if self.model is None:
+            return None
+            
+        file_path = filedialog.asksaveasfilename(
+            initialdir=Path.cwd(),
+            defaultextension=".pkl",
+            filetypes=[("Pickle Files", "*.pkl")],
+            title="Save trained model"
+        )
+        if file_path:
+            with open(file_path, "wb") as f:
+                pickle.dump(self.model, f)
+            return file_path
+        return None
+    
+    def load_model(self) -> Tuple[bool, str]:
+        """
+        Load a trained model from a file.
+        
+        Returns:
+            Tuple of (success, message)
+        """
+        file_path = filedialog.askopenfilename(
+            initialdir=Path.cwd(),
+            defaultextension=".pkl",
+            filetypes=[("Pickle Files", "*.pkl")],
+            title="Load trained model"
+        )
+        if file_path:
+            try:
+                self.model = pickle.load(open(file_path, "rb"))
+                return True, f"Model loaded from {file_path}"
+            except Exception as e:
+                return False, f"Failed to load model: {str(e)}"
+        return False, "No file selected"
+    
+    def test_model(self, img_index: int) -> int:
+        """
+        Test the model with a specific image from the dataset.
+        
+        Args:
+            img_index: Index of the image in the MNIST dataset
+            
+        Returns:
+            Classification result (predicted digit)
+        """
+        if self.model is None:
+            return -1
+            
+        inputs, _ = get_mnist()
+        if 0 <= img_index < len(inputs):
+            img = inputs[img_index].reshape(-1, 1)
+            return self.model.classify(img)
+        return -1
+    
+    def has_model(self) -> bool:
+        """Check if a model is loaded or trained."""
+        return self.model is not None
+    
+    def set_parameters(self, epochs: int, hidden_layer_sizes: List[int], learn_rate: float) -> None:
+        """
+        Set the training parameters.
+        
+        Args:
+            epochs: Number of epochs to train for
+            hidden_layer_sizes: Size of the hidden layers
+            learn_rate: Learning rate for the neural network
+        """
+        self.epochs = epochs
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.learn_rate = learn_rate 
 
-def save_model(model: NeuralNetwork) -> str | None:
+def display_prediction(controller: NNController, index: int) -> None:
     """
-    Save the trained model to a file.
+    Display a prediction for a selected digit.
     
     Args:
-        model: The trained NeuralNetwork model to save
+        controller: The neural network controller
+        index: Index of the image in the MNIST dataset
+    """
     
-    Returns:
-        Path to the saved model or None if saving was cancelled
-    """
-    file_path = filedialog.asksaveasfilename(
-        initialdir=Path.cwd(),
-        defaultextension=".pkl",
-        filetypes=[("Pickle Files", "*.pkl")],
-        title="Save trained model"
-    )
-    if file_path:
-        with open(file_path, "wb") as f:
-            pickle.dump(model, f)
-        return file_path
-    return None
-
-def display_prediction(model: NeuralNetwork) -> None:
-    """
-    Display a prediction for a user-selected digit.
     
-    Args:
-        model: The trained neural network model
-    """
+    if not controller.has_model():
+        print("No model available. Train or load a model first.")
+        return
+        
     inputs, _ = get_mnist()
-    index = int(input("Enter a number (0 - 59999): "))
-    img = inputs[index]
-    plt.imshow(img.reshape(28, 28), cmap="Greys")
+    if 0 <= index < len(inputs):
+        img = inputs[index]
+        plt.imshow(img.reshape(28, 28), cmap="Greys")
 
-    img = img.reshape(-1, 1)
-    classification = model.classify(img)
-
-    plt.title(f"Predicted digit: {classification}")
-    plt.show()
+        classification = controller.test_model(index)
+        plt.title(f"Predicted digit: {classification}")
+        plt.show()
+    else:
+        print(f"Invalid index. Must be between 0 and {len(inputs)-1}")
 
 def main() -> None:
-    # Import gui module and start the application
-    from gui import create_gui
-    window = create_gui()
+    # Create controller
+    controller = NNController()
+    
+    # Create and start GUI
+    window = create_gui(controller)
     window.mainloop()
 
 if __name__ == "__main__":

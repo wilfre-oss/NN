@@ -2,8 +2,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from pathlib import Path
 import sys
-import pickle
-from main import train_model, save_model
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from data import get_mnist
 
 if sys.platform.startswith("win"):
     import ctypes
@@ -22,19 +24,17 @@ else:
     def show_in_taskbar(window):
         pass  # No-op on non-Windows platforms
 
-def create_gui():
+def create_gui(controller):
     window = tk.Tk()
     window.overrideredirect(True)
     window.geometry("400x320")
     window.resizable(False, False)
     
-    trained_model = None
-    epochs = tk.StringVar(value="5")
-    hidden_layers = tk.StringVar(value="20")
-    learning_rate = tk.StringVar(value="0.01")
+    epochs = tk.StringVar(value=str(controller.epochs))
+    hidden_layers = tk.StringVar(value=",".join(map(str, controller.hidden_layer_sizes)))
+    learning_rate = tk.StringVar(value=str(controller.learn_rate))
 
     def train_network():
-        nonlocal trained_model
         try:
             epoch_value = int(epochs.get())
             hidden_layer_sizes = [int(layer) for layer in hidden_layers.get().split(",")]
@@ -43,6 +43,8 @@ def create_gui():
             status_label.config(text="Please enter valid values in settings.")
             return
 
+        controller.set_parameters(epoch_value, hidden_layer_sizes, learn_rate_value)
+
         def update_progress(epoch: int, total_epochs: int, accuracy: float | None):
             if accuracy is None:
                 status_label.config(text=f"Epoch {epoch}/{total_epochs} - Accuracy: N/A")
@@ -50,42 +52,23 @@ def create_gui():
                 status_label.config(text=f"Epoch {epoch}/{total_epochs} - Accuracy: {accuracy:.2f}%")
             window.update_idletasks()
 
-        trained_model, accuracy = train_model(
-            epochs=epoch_value, 
-            hidden_layer_sizes=hidden_layer_sizes,
-            learn_rate=learn_rate_value,
-            progress_callback=update_progress,
-            network=trained_model
-        )
+        accuracy = controller.train_model(progress_callback=update_progress)
         status_label.config(text=f"Training complete! Epoch {epoch_value}/{epoch_value} - Accuracy: {accuracy:.2f}%")
 
     def save_trained_model():
-        if trained_model is None:
+        if not controller.has_model():
             status_label.config(text="Train the model first!")
             return
 
-        file_path = save_model(trained_model)
+        file_path = controller.save_model()
         if file_path:
             status_label.config(text=f"Model saved to {file_path}")
         else:
             status_label.config(text="Failed to save model")
 
     def load_trained_model():
-        nonlocal trained_model
-        file_path = filedialog.askopenfilename(
-            initialdir=Path.cwd(),
-            defaultextension=".pkl",
-            filetypes=[("Pickle Files", "*.pkl")],
-            title="Load trained model"
-        )
-        if file_path:
-            try:
-                trained_model = pickle.load(open(file_path, "rb"))
-                status_label.config(text=f"Model loaded from {file_path}")
-            except Exception as e:
-                status_label.config(text=f"Failed to load model: {str(e)}")
-        else:
-            status_label.config(text="Failed to load model")
+        success, message = controller.load_model()
+        status_label.config(text=message)
 
     def open_settings():
         settings_window = tk.Toplevel(window)
@@ -140,10 +123,45 @@ def create_gui():
         save_settings_button.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
 
     def test_model():
-        if trained_model is None:
+        if not controller.has_model():
             status_label.config(text="Train the model first!")
             return
-
+            
+        # Create a simple test window with a randomly selected digit
+        test_window = tk.Toplevel(window)
+        test_window.title("Test Neural Network")
+        test_window.geometry("400x400")
+        test_window.resizable(False, False)
+        
+        test_frame = ttk.Frame(test_window, padding="20 20 20 20")
+        test_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Get a random digit from the MNIST dataset
+        inputs, _ = get_mnist()
+        random_index = np.random.randint(0, len(inputs))
+        img = inputs[random_index]
+        
+        # Create a figure to display the digit
+        fig = plt.Figure(figsize=(4, 4), dpi=100)
+        ax = fig.add_subplot(111)
+        ax.imshow(img.reshape(28, 28), cmap="Greys")
+        
+        # Get the prediction from the model
+        prediction = controller.test_model(random_index)
+        ax.set_title(f"Predicted digit: {prediction}")
+        ax.axis('off')
+        
+        # Embed the figure in the tkinter window
+        canvas = FigureCanvasTkAgg(fig, master=test_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        # Add a close button
+        close_button = ttk.Button(test_frame, text="Close", command=test_window.destroy)
+        close_button.pack(side=tk.BOTTOM, pady=10)
+        
+        # Update status
+        status_label.config(text=f"Testing model on random digit (index: {random_index})")
 
     def start_move(event):
         window.x = event.x
