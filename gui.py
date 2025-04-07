@@ -127,41 +127,52 @@ def create_gui(controller):
             status_label.config(text="Train the model first!")
             return
             
-        # Create a simple test window with a randomly selected digit
         test_window = tk.Toplevel(window)
         test_window.title("Test Neural Network")
-        test_window.geometry("400x400")
+        test_window.geometry("300x400")
         test_window.resizable(False, False)
         
-        test_frame = ttk.Frame(test_window, padding="20 20 20 20")
+        test_frame = ttk.Frame(test_window, padding="10 10 10 10")
         test_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Get a random digit from the MNIST dataset
-        inputs, _ = get_mnist()
-        random_index = np.random.randint(0, len(inputs))
-        img = inputs[random_index]
+        label_frame = ttk.Frame(test_frame)
+        label_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10))
         
-        # Create a figure to display the digit
-        fig = plt.Figure(figsize=(4, 4), dpi=100)
+        prediction_label = ttk.Label(label_frame, text="Predicted: ", font=('Helvetica', 12))
+        prediction_label.grid(row=0, column=0, padx=5)
+        
+        actual_label = ttk.Label(label_frame, text="Actual: ", font=('Helvetica', 12))
+        actual_label.grid(row=0, column=1, padx=5)
+        
+        fig = plt.Figure(figsize=(3, 3), dpi=100)
         ax = fig.add_subplot(111)
-        ax.imshow(img.reshape(28, 28), cmap="Greys")
         
-        # Get the prediction from the model
-        prediction = controller.test_model(random_index)
-        ax.set_title(f"Predicted digit: {prediction}")
-        ax.axis('off')
-        
-        # Embed the figure in the tkinter window
         canvas = FigureCanvasTkAgg(fig, master=test_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        # Add a close button
-        close_button = ttk.Button(test_frame, text="Close", command=test_window.destroy)
-        close_button.pack(side=tk.BOTTOM, pady=10)
+        def update_test():
+            inputs, labels = controller.data
+            random_index = np.random.randint(0, len(inputs))
+            img = inputs[random_index]
+            
+            ax.clear()
+            ax.imshow(img.reshape(28, 28), cmap="Greys")
+            ax.axis('off')
+            
+            prediction = controller.test_model(random_index)
+            actual = np.argmax(labels[random_index])
+            
+            prediction_label.config(text=f"Predicted: {prediction}")
+            actual_label.config(text=f"Actual: {actual}")
+            
+            canvas.draw()
+            
+            status_label.config(text=f"Testing model on random digit (index: {random_index})")
         
-        # Update status
-        status_label.config(text=f"Testing model on random digit (index: {random_index})")
+        update_test()
+        
+        next_button = ttk.Button(test_frame, text="Next", command=update_test)
+        next_button.pack(side=tk.BOTTOM, pady=5)
 
     def start_move(event):
         window.x = event.x

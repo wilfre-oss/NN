@@ -20,6 +20,7 @@ class NNController:
         self.epochs = 5
         self.hidden_layer_sizes = [20]
         self.learn_rate = 0.01
+        self.data = self.load_data()
         
     def train_model(self, progress_callback: Optional[Callable] = None) -> float:
         """
@@ -31,7 +32,7 @@ class NNController:
         Returns:
             Final accuracy of the model
         """
-        inputs, labels = get_mnist()
+        inputs, labels = self.data
         
         if self.model is None:
             nn = NeuralNetwork()
@@ -136,6 +137,15 @@ class NNController:
         self.epochs = epochs
         self.hidden_layer_sizes = hidden_layer_sizes
         self.learn_rate = learn_rate 
+    
+    def load_data(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Load the MNIST dataset. Will eventually load chosen dataset.
+        
+        Returns:
+            Tuple of (inputs, labels)
+        """ 
+        return get_mnist()
 
 def display_prediction(controller: NNController, index: int) -> None:
     """
@@ -151,7 +161,7 @@ def display_prediction(controller: NNController, index: int) -> None:
         print("No model available. Train or load a model first.")
         return
         
-    inputs, _ = get_mnist()
+    inputs, _ = controller.data
     if 0 <= index < len(inputs):
         img = inputs[index]
         plt.imshow(img.reshape(28, 28), cmap="Greys")
