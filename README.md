@@ -21,12 +21,12 @@ A simple feedforward neural network written in Python and NumPy, designed for ex
 ### Settings Window
 > Configure training parameters including epochs, hidden layer sizes, and learning rate
 
-![Settings Window](path/to/settings_window.png)
+![Settings Window](https://github.com/user-attachments/assets/504c2014-242a-4e98-9d98-7b44c815a3e7)
 
 ### Test Window
 > Visualize model predictions with real-time testing on random MNIST digits, showing both predicted and actual labels
 
-![Test Window](path/to/test_window.png)
+![Test Window](https://github.com/user-attachments/assets/54831f8d-0188-444e-b64f-4d68ef7a1938)
 
 ## 📦 Requirements
 
