@@ -77,6 +77,23 @@ class MNISTLoader(DatasetLoader):
         
         return images, one_hot_labels
 
+class NPZLoader(DatasetLoader):
+    """Loader for the NPZ dataset."""
+    
+    def load_data(self, filepath: str) -> Tuple[np.ndarray, np.ndarray]:
+        """Load and preprocess the NPZ dataset."""
+        with np.load(filepath) as f:
+            images, labels = f["x_train"], f["y_train"]
+        
+        images = images.astype("float32") / 255
+        images = np.reshape(images, (images.shape[0], images.shape[1] * images.shape[2]))
+        
+        self._create_label_mapping(list(range(10)))
+        
+        one_hot_labels = self.encode_labels(labels)
+        
+        return images, one_hot_labels
+
 def get_mnist() -> Tuple[np.ndarray, np.ndarray]:
     """
     Get the MNIST dataset.

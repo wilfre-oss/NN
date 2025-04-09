@@ -67,6 +67,52 @@ nn/
     └── mnist.npz    # MNIST dataset
 ```
 
+## 📊 Data Format Requirements
+
+### NPZ Dataset Format
+The application currently supports NumPy's `.npz` format with the following requirements:
+
+```
+dataset.npz
+├── x_train: numpy.ndarray    # Image data
+│   └── shape: (n_samples, height, width)
+│   └── type: uint8 or float32 (0-255)
+└── y_train: numpy.ndarray    # Labels
+    └── shape: (n_samples,)
+    └── type: any            # Can be int, str, or any other type
+```
+
+**Requirements:**
+- Images must be grayscale (2D arrays)
+- Images will be normalized to 0-1 range automatically
+- Images will be flattened to 1D arrays automatically
+- Labels can be of any type (integers, strings, etc.)
+- All images must have the same dimensions
+
+**Examples:**
+
+```python
+# Example 1: Numeric labels (0-9)
+images = np.random.randint(0, 256, (1000, 28, 28), dtype=np.uint8)  # 1000 28x28 images
+labels = np.random.randint(0, 10, (1000,), dtype=np.int)            # 1000 labels (0-9)
+
+# Save in required format
+np.savez('digits.npz', x_train=images, y_train=labels)
+
+# Example 2: String labels
+images = np.random.randint(0, 256, (100, 32, 32), dtype=np.uint8)   # 100 32x32 images
+labels = np.array(['cat', 'dog'] * 50)                              # 100 labels ('cat'/'dog')
+
+# Save in required format
+np.savez('animals.npz', x_train=images, y_train=labels)
+```
+
+The loader will automatically:
+1. Normalize image values to range [0, 1]
+2. Flatten images to 1D arrays
+3. Create a mapping between your labels and indices
+4. Convert labels to one-hot encoding for training
+
 ## 🔮 Planned Features
 
 ### Enhanced Training Settings
